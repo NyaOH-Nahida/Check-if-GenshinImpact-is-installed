@@ -1,0 +1,59 @@
+import sys, ctypes, tempfile, requests, winreg, os
+from time import sleep
+
+Genshin_URL = "https://ys-api.mihoyo.com/event/download_porter/link/ys_cn/official/pc_default"
+
+def Read_Registry():
+    """
+    读取系统注册表，检测是否安装了原神
+    """
+    try:
+        key = winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\原神")
+        value, _ = winreg.QueryValueEx(key, "InstallPath")
+        return value
+    except FileNotFoundError:
+        return None
+    except Exception as e:
+        print("Error accessing registry:", e)
+        return None
+
+#程序主函数
+def main_function():
+    install_path = Read_Registry()
+    if install_path:
+        print("检测到您的电脑上安装了原神，安装路径:", install_path)
+        print("正在启动原神……(该窗口即将在5秒后自动关闭)")
+        sleep(5)
+        try:
+            os.startfile(f"{install_path}\Genshin Impact Game\YuanShen.exe")
+        except Exception as e:
+            print(f"打开程序时出错！{e}")
+        else:
+            exit()
+    else:
+        print("在您的电脑上未找到原神，即将为你安装最新版原神……")
+        try:
+            temp_dir = tempfile.gettempdir()
+            save_path = f"{temp_dir}\yuanshen_setup.exe"
+            #获取temp目录绝对路径
+            download_file = requests.get(Genshin_URL, save_path)
+            #发送请求下载文件
+            print("正在下载安装包……")
+            open(save_path,"wb").write(download_file.content)
+            #写入到文件
+            print(f"文件已下载到：{save_path}")
+            print("正在打开……")
+            os.system(f'start "" "{save_path}"')
+            sleep(5)
+            #打开下载好的安装包
+        except Exception as e:
+            print(f"下载文件时出错！{e}")
+
+if __name__ == '__main__':
+    # 判断当前进程是否以管理员权限运行
+    if ctypes.windll.shell32.IsUserAnAdmin() :
+        print('权限检查通过！')
+        main_function()
+    else:
+        print('权限检查失败！正在以管理员权限启动新进程...')
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", sys.executable, __file__, None, 1)
